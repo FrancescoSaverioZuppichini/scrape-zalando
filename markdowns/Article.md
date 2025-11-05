@@ -1,6 +1,6 @@
-# Finding clothes with Scrapegraph, Jina Clip v2 and Qdrant Vector DB 👗
+# Finding clothes with Scrapegraph, Jina Clip v2 and Qdrant Vector Search Engine 👗
 
-Hi there 👋 Today we're building a small demo to search clothes from [zalando](https://zalando.com/) directly with natural language or images. Our plan of attack is to first scrape them, embed the images using a multimodal model and then store them into a vector db so we can search!
+Hi there 👋 Today we're building a small demo to search clothes from [zalando](https://zalando.com/) directly with natural language or images. Our plan of attack is to first scrape them, embed the images using a multimodal model and then store them into a vector search enginge so we can search!
 
 Scraping websites is not an easy task, most of them cannot be easily fetched with an http request and require javascript to be loaded. If we try to make a HTTP request to zalando, we'll be blocked.
 
@@ -24,7 +24,7 @@ We need something smarter, [scrapegraph](https://scrapegraphai.com/) is a perfec
 
 Once we get the data, we need a way to create vectors to store/search. Since we want to work with images and text, we need the heavy guns. [Jina ClipV2](https://jina.ai/news/jina-clip-v2-multilingual-multimodal-embeddings-for-text-and-images/) is a wonderful open source model that can represent both images and text as vectors, thus it's a perfect pick for the task.
 
-Finally, we need to save our juicy vectors somewhere. [Qdrant](https://qdrant.tech/) is my go-to vector database, you can self host it with [docker](https://hub.docker.com/r/qdrant/qdrant) and it comes with a handy ui. It supports different vector quantization techniques, so we can squeeze a lot of performance!
+Finally, we need to save our juicy vectors somewhere. [Qdrant](https://qdrant.tech/) is my go-to vector search engine, you can self host it with [docker](https://hub.docker.com/r/qdrant/qdrant) and it comes with a handy ui. It supports different vector quantization techniques, so we can squeeze a lot of performance!
 
 So, to recap. Our plan of attack looks something like:
 
@@ -40,25 +40,22 @@ Let's get started!
 
 We'll need a bunch of packages. I am using `uv`, so we'll stick with it. You can init your project using
 
+
+```python
+!uv init
+!uv add python-dotenv scrapegraph-py==1.24.0 aiofiles sentence-transformers qdrant-client
 ```
-uv init
-uv add python-dotenv scrapegraph-py==1.24.0 aiofiles sentence-transformers qdrant-client
-```
+
+    [1m[31merror[39m[0m: Project is already initialized in `[36m/Users/FRANCESCO.ZUPPICHINI/Documents/scrape-zalando[39m` (`pyproject.toml` file exists)
+    [2mResolved [1m161 packages[0m [2min 1ms[0m[0m
+    [2mAudited [1m141 packages[0m [2min 0.11ms[0m[0m
+
 
 Or if you prefer `pip`
 
 ```
 pip install python-dotenv scrapegraph-py==1.24.0 aiofiles sentence-transformers qdrant-client
 ```
-
-
-```python
-!uv add python-dotenv scrapegraph-py==1.24.0 aiofiles sentence-transformers qdrant-client
-```
-
-    [2mResolved [1m161 packages[0m [2min 3ms[0m[0m
-    [2mAudited [1m141 packages[0m [2min 0.31ms[0m[0m
-
 
 ## Scraping
 
@@ -157,31 +154,31 @@ response = await client.smartscraper(
 response["result"]["articles"][0:2]
 ```
 
-    💬 2025-09-23 11:11:47,782 🔑 Initializing AsyncClient
-    💬 2025-09-23 11:11:47,782 ✅ AsyncClient initialized successfully
-    💬 2025-09-23 11:11:47,783 🔍 Starting smartscraper request
-    💬 2025-09-23 11:11:47,789 🚀 Making POST request to https://api.scrapegraphai.com/v1/smartscraper (Attempt 1/3)
-    💬 2025-09-23 11:12:14,851 ✅ Request completed successfully: POST https://api.scrapegraphai.com/v1/smartscraper
-    💬 2025-09-23 11:12:14,851 ✨ Smartscraper request completed successfully
+    💬 2025-10-08 10:23:24,101 🔑 Initializing AsyncClient
+    💬 2025-10-08 10:23:24,101 ✅ AsyncClient initialized successfully
+    💬 2025-10-08 10:23:24,101 🔍 Starting smartscraper request
+    💬 2025-10-08 10:23:24,104 🚀 Making POST request to https://api.scrapegraphai.com/v1/smartscraper (Attempt 1/3)
+    💬 2025-10-08 10:23:34,194 ✅ Request completed successfully: POST https://api.scrapegraphai.com/v1/smartscraper
+    💬 2025-10-08 10:23:34,196 ✨ Smartscraper request completed successfully
 
 
 
 
 
-    [{'name': 'Even&Odd Tall Jeans baggy',
-      'brand': 'Even&Odd',
-      'description': 'Jeans baggy in denim blu',
-      'price': 35.99,
+    [{'name': 'Calvin Klein Jeans MID RISE - Jeans a sigaretta - indigo channel',
+      'brand': 'Calvin Klein Jeans',
+      'description': 'No content available',
+      'price': 54.99,
       'review_score': 0,
-      'url': 'https://www.zalando.it/evenandodd-tall-jeans-baggy-blue-denim-evi21n008-k13.html',
-      'image_url': 'https://img01.ztat.net/article/spp-media-p1/f5c7069d4aab4658b9acd25086291638/b97f57e8febf4770ad0b549f8894174f.jpg?imwidth=300'},
-     {'name': 'Salsa Jeans FAITH PUSH IN CROPPED',
-      'brand': 'Salsa Jeans',
-      'description': 'Jeans slim fit in blu',
-      'price': 99.95,
+      'url': 'https://www.zalando.it/calvin-klein-jeans-mid-rise-jeans-a-sigaretta-indigo-channel-c1821n0wb-k11.html',
+      'image_url': 'https://img01.ztat.net/article/spp-media-p1/391e37f99e42468193efe13676cb98f4/7f2e068eb2a24d3aa5edadce0e9fd461.jpg?imwidth=300'},
+     {'name': 'GAP BAGGY DYLAN - Wide Leg - light indigo',
+      'brand': 'GAP',
+      'description': 'No content available',
+      'price': 42.49,
       'review_score': 0,
-      'url': 'https://www.zalando.it/salsa-jeans-jeans-slim-fit-blau-sz021n16x-k11.html',
-      'image_url': 'https://img01.ztat.net/article/spp-media-p1/7932ab0844c5471a9263e0ee5a2df933/20eff060d1074b3b9f32e8a3c7061118.png?imwidth=300'}]
+      'url': 'https://www.zalando.it/gap-baggy-dylan-jeans-baggy-light-indigo-gp021n0ih-k11.html',
+      'image_url': 'https://img01.ztat.net/article/spp-media-p1/0a09f06a933c4714bb81369f858c9cde/8c619d57599f43ee9577b67e5c8ee170.jpg?imwidth=300'}]
 
 
 
@@ -238,7 +235,7 @@ async def main():
 await main()
 ```
 
-    💬 2025-09-23 11:12:14,864 jsonl file exists, assuming we had scrape already. Quitting ...
+    💬 2025-10-08 10:23:34,214 jsonl file exists, assuming we had scrape already. Quitting ...
 
 
 And then you have it, each line is a page scraped!
@@ -309,13 +306,231 @@ model = SentenceTransformer(
 )
 ```
 
+
+    modules.json:   0%|          | 0.00/273 [00:00<?, ?B/s]
+
+
+
+    config_sentence_transformers.json:   0%|          | 0.00/281 [00:00<?, ?B/s]
+
+
+
+    README.md: 0.00B [00:00, ?B/s]
+
+
+
+    custom_st.py: 0.00B [00:00, ?B/s]
+
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/jina-clip-v2:
+    - custom_st.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+
+
+
+    config.json: 0.00B [00:00, ?B/s]
+
+
+
+    configuration_clip.py: 0.00B [00:00, ?B/s]
+
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/jina-clip-implementation:
+    - configuration_clip.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
     `torch_dtype` is deprecated! Use `dtype` instead!
+
+
+
+    modeling_clip.py: 0.00B [00:00, ?B/s]
+
+
+
+    rope_embeddings.py: 0.00B [00:00, ?B/s]
+
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/jina-clip-implementation:
+    - rope_embeddings.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+
+
+
+    hf_model.py: 0.00B [00:00, ?B/s]
+
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/jina-clip-implementation:
+    - hf_model.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+
+
+
+    eva_model.py: 0.00B [00:00, ?B/s]
+
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/jina-clip-implementation:
+    - eva_model.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+
+
+
+    transform.py: 0.00B [00:00, ?B/s]
+
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/jina-clip-implementation:
+    - transform.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/jina-clip-implementation:
+    - modeling_clip.py
+    - rope_embeddings.py
+    - hf_model.py
+    - eva_model.py
+    - transform.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
     `torch_dtype` is deprecated! Use `dtype` instead!
-    /Users/francescozuppichini/.cache/huggingface/modules/transformers_modules/jinaai/jina-clip-implementation/39e6a55ae971b59bea6e44675d237c99762e7ee2/modeling_clip.py:137: UserWarning: Flash attention requires CUDA, disabling
+
+
+
+    model.safetensors:   0%|          | 0.00/1.73G [00:00<?, ?B/s]
+
+
+    /Users/FRANCESCO.ZUPPICHINI/.cache/huggingface/modules/transformers_modules/jinaai/jina-clip-implementation/39e6a55ae971b59bea6e44675d237c99762e7ee2/modeling_clip.py:137: UserWarning: Flash attention requires CUDA, disabling
       warnings.warn('Flash attention requires CUDA, disabling')
-    /Users/francescozuppichini/.cache/huggingface/modules/transformers_modules/jinaai/jina-clip-implementation/39e6a55ae971b59bea6e44675d237c99762e7ee2/modeling_clip.py:172: UserWarning: xFormers requires CUDA, disabling
+    /Users/FRANCESCO.ZUPPICHINI/.cache/huggingface/modules/transformers_modules/jinaai/jina-clip-implementation/39e6a55ae971b59bea6e44675d237c99762e7ee2/modeling_clip.py:172: UserWarning: xFormers requires CUDA, disabling
       warnings.warn('xFormers requires CUDA, disabling')
+
+
+
+    config.json: 0.00B [00:00, ?B/s]
+
+
+
+    configuration_xlm_roberta.py: 0.00B [00:00, ?B/s]
+
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/xlm-roberta-flash-implementation:
+    - configuration_xlm_roberta.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+
+
+
+    modeling_lora.py: 0.00B [00:00, ?B/s]
+
+
+
+    modeling_xlm_roberta.py: 0.00B [00:00, ?B/s]
+
+
+
+    mha.py: 0.00B [00:00, ?B/s]
+
+
+
+    rotary.py: 0.00B [00:00, ?B/s]
+
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/xlm-roberta-flash-implementation:
+    - rotary.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/xlm-roberta-flash-implementation:
+    - mha.py
+    - rotary.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+
+
+
+    mlp.py: 0.00B [00:00, ?B/s]
+
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/xlm-roberta-flash-implementation:
+    - mlp.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+
+
+
+    block.py: 0.00B [00:00, ?B/s]
+
+
+
+    stochastic_depth.py: 0.00B [00:00, ?B/s]
+
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/xlm-roberta-flash-implementation:
+    - stochastic_depth.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/xlm-roberta-flash-implementation:
+    - block.py
+    - stochastic_depth.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+
+
+
+    embedding.py: 0.00B [00:00, ?B/s]
+
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/xlm-roberta-flash-implementation:
+    - embedding.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+
+
+
+    xlm_padding.py: 0.00B [00:00, ?B/s]
+
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/xlm-roberta-flash-implementation:
+    - xlm_padding.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/xlm-roberta-flash-implementation:
+    - modeling_xlm_roberta.py
+    - mha.py
+    - mlp.py
+    - block.py
+    - embedding.py
+    - xlm_padding.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/xlm-roberta-flash-implementation:
+    - modeling_lora.py
+    - modeling_xlm_roberta.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+
+
+
+    tokenizer_config.json: 0.00B [00:00, ?B/s]
+
+
+
+    tokenizer.json:   0%|          | 0.00/17.1M [00:00<?, ?B/s]
+
+
+
+    special_tokens_map.json:   0%|          | 0.00/964 [00:00<?, ?B/s]
+
+
+
+    tokenizer_config.json: 0.00B [00:00, ?B/s]
+
+
+
+    tokenizer.json:   0%|          | 0.00/17.1M [00:00<?, ?B/s]
+
+
+
+    special_tokens_map.json:   0%|          | 0.00/964 [00:00<?, ?B/s]
+
+
+
+    preprocessor_config.json:   0%|          | 0.00/584 [00:00<?, ?B/s]
+
+
     Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+
+
+
+    processing_clip.py: 0.00B [00:00, ?B/s]
+
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/jina-clip-implementation:
+    - processing_clip.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
 
 
 Then, we can just pass an image URL to get the embeddings. We also normalize them since we will use cosine similarity to perform search later.
@@ -398,10 +613,13 @@ if not client.collection_exists(QDRANT_COLLECTION_NAME):
 ```
 
     Unclosed client session
-    client_session: <aiohttp.client.ClientSession object at 0x121560c20>
+    client_session: <aiohttp.client.ClientSession object at 0x10d05d010>
     Unclosed connector
-    connections: ['deque([(<aiohttp.client_proto.ResponseHandler object at 0x12156af90>, 82556.913441041)])']
-    connector: <aiohttp.connector.TCPConnector object at 0x121560830>
+    connections: ['deque([(<aiohttp.client_proto.ResponseHandler object at 0x10d0319d0>, 12896.416191291)])']
+    connector: <aiohttp.connector.TCPConnector object at 0x10d05cc20>
+
+
+    clothes created!
 
 
 We want to process our data in batches to efficiently utilize both the embedding model and the network connection to Qdrant.
@@ -415,7 +633,7 @@ BATCH_SIZE = 8
 
 
 def embed_articles(data: dict) -> np.array:
-    image_urls = [el["image_url"] for el in batch]
+    image_urls = [el["image_url"] for el in data]
     image_embeddings = model.encode(
             image_urls, normalize_embeddings=True
         )
@@ -480,7 +698,7 @@ We can now search 🥳! With either a text query or an image
 
 
 ```python
-query = 't-shirt black'
+query = 'red pants'
 # call the model to embed the query
 query_embeddings = model.encode(
     query, prompt_name='retrieval.query', normalize_embeddings=True
@@ -494,27 +712,8 @@ res = client.search(
     )
 ```
 
-
-    ---------------------------------------------------------------------------
-
-    NameError                                 Traceback (most recent call last)
-
-    Cell In[1], line 3
-          1 query = 't-shirt black'
-          2 # call the model to embed the query
-    ----> 3 query_embeddings = model.encode(
-          4     query, prompt_name='retrieval.query', normalize_embeddings=True
-          5 
-          6 )  
-          7 # getting results
-          8 res = client.search(
-          9         collection_name=QDRANT_COLLECTION_NAME,
-         10         query_vector=query_embeddings.tolist(),
-         11         limit=4,
-         12     )
-
-
-    NameError: name 'model' is not defined
+    /var/folders/st/ghlgjhss71l6tm_gvh7nzcv80000gp/T/ipykernel_41659/1688051610.py:8: DeprecationWarning: `search` method is deprecated and will be removed in the future. Use `query_points` instead.
+      res = client.search(
 
 
 Let's define a function to show the results
@@ -534,8 +733,12 @@ show_images(res)
 ```
 
 
-<div style='display:grid;grid-template-columns:repeat(4,1fr);gap:10px;'><img src='https://img01.ztat.net/article/spp-media-p1/13f14ab6cacc4f33aea6cfadb0fac207/7aef5c18accf478d860a3331103b73f6.jpg?imwidth=300' style='width:300px;height:auto;object-fit:cover;border:1px solid #ddd;'><img src='https://img01.ztat.net/article/spp-media-p1/7677dca00ac64142bbd7f40a123fa9f1/5e505f360e094ad89fe394ac376261a8.jpg?imwidth=300' style='width:300px;height:auto;object-fit:cover;border:1px solid #ddd;'><img src='https://img01.ztat.net/article/spp-media-p1/d1d3b10d972747edb8f0820108654c09/c48761ba8f78492cb1e44d629c0532b9.jpg?imwidth=300' style='width:300px;height:auto;object-fit:cover;border:1px solid #ddd;'><img src='https://img01.ztat.net/article/spp-media-p1/62cfd75b7e634ec2809e0ab7f808adce/5b6ee869474b4268a5c7982548c69e2e.jpg' style='width:300px;height:auto;object-fit:cover;border:1px solid #ddd;'></div>
+<div style='display:grid;grid-template-columns:repeat(4,1fr);gap:10px;'><img src='https://img01.ztat.net/article/spp-media-p1/14d11c8dc1084fd68dec60fbac92a41c/504c7695a7004dbb810970bb8014d5aa.jpg?imwidth=300' style='width:300px;height:auto;object-fit:cover;border:1px solid #ddd;'><img src='https://img01.ztat.net/article/spp-media-p1/148c48ea5af143c4b7868a21683a9e1e/6fc29d5783b448aebeacab72a89a6e77.jpg?imwidth=300' style='width:300px;height:auto;object-fit:cover;border:1px solid #ddd;'><img src='https://img01.ztat.net/article/spp-media-p1/f203270fbbd845148bb432014aacc3c1/ba0e6318c6a943dea9fa032a702d52ff.jpg?imwidth=300' style='width:300px;height:auto;object-fit:cover;border:1px solid #ddd;'><img src='https://img01.ztat.net/article/spp-media-p1/f7f93ebd0ddd496bb4f1b224a7c4d555/64c63bd0e85a406f9ec2764811438ec4.jpg?imwidth=300' style='width:300px;height:auto;object-fit:cover;border:1px solid #ddd;'></div>
 
+
+We're seeing mixed results here—both red pants and red tops appear in our outputs. The issue stems from how we process the images. Most product photos show nearly full-body shots of the model, so when we have a jeans item, for example, the image captures both the jeans and the upper body. We'll leave it as a take-home exercise for the reader to use a segmentation model to isolate the actual article from the model, crop it, and then embed it.
+
+Since ClipV2 is multimodal, we can also use an image.
 
 
 ```python
@@ -556,7 +759,7 @@ res = client.search(
 Image(url=image_url, width=400)
 ```
 
-    /var/folders/_t/kq5v2mjs6c90llk5bdqhgndc0000gn/T/ipykernel_37844/1374654977.py:9: DeprecationWarning: `search` method is deprecated and will be removed in the future. Use `query_points` instead.
+    /var/folders/st/ghlgjhss71l6tm_gvh7nzcv80000gp/T/ipykernel_41659/1374654977.py:9: DeprecationWarning: `search` method is deprecated and will be removed in the future. Use `query_points` instead.
       res = client.search(
 
 
